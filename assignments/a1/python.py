@@ -149,8 +149,57 @@ def plot_embeddings(M_reduced, word2ind, words):
 
     # ------------------
 
+def load_embedding_model():
+    """ Load GloVe Vectors
+        Return:
+            wv_from_bin: All 400000 embeddings, each lengh 200
+    """
+    import gensim.downloader as api
+    wv_from_bin = api.load("glove-wiki-gigaword-200")
+    print("Loaded vocab size %i" % len(list(wv_from_bin.index_to_key)))
+    return wv_from_bin
+
+def get_matrix_of_vectors(wv_from_bin, required_words=['tonnes', 'grain', 'wheat',  'agriculture', 'corn', 'maize', 'export', 'department', 'barley', 'grains', 'soybeans', 'sorghum']):
+    """ Put the GloVe vectors into a matrix M.
+        Param:
+            wv_from_bin: KeyedVectors object; the 400000 GloVe vectors loaded from file
+        Return:
+            M: numpy matrix shape (num words, 200) containing the vectors
+            word2ind: dictionary mapping each word to its row number in M
+    """
+    import random
+    words = list(wv_from_bin.index_to_key)
+    print("Shuffling words ...")
+    random.seed(225)
+    random.shuffle(words)
+    words = words[:10000]
+    print("Putting %i words into word2ind and matrix M..." % len(words))
+    word2ind = {}
+    M = []
+    curInd = 0
+    for w in words:
+        try:
+            M.append(wv_from_bin.get_vector(w))
+            word2ind[w] = curInd
+            curInd += 1
+        except KeyError:
+            continue
+    for w in required_words:
+        if w in words:
+            continue
+        try:
+            M.append(wv_from_bin.get_vector(w))
+            word2ind[w] = curInd
+            curInd += 1
+        except KeyError:
+            continue
+    M = np.stack(M)
+    print("Done.")
+    return M, word2ind
+
 # --------------- Running --------------- #
 
+"""PART 1 - count-based word vectors"""
 """Q1.1"""
 # # Define toy corpus
 # test_corpus = ["{} All that glitters isn't gold {}".format(START_TOKEN, END_TOKEN).split(" "),
@@ -242,12 +291,43 @@ def plot_embeddings(M_reduced, word2ind, words):
 # print ("-" * 80)
 
 """Q1.4"""
-print ("-" * 80)
-print ("Outputted Plot:")
+# print ("-" * 80)
+# print ("Outputted Plot:")
+#
+# M_reduced_plot_test = np.array([[1, 1], [-1, -1], [1, -1], [-1, 1], [0, 0]])
+# word2ind_plot_test = {'test1': 0, 'test2': 1, 'test3': 2, 'test4': 3, 'test5': 4}
+# words = ['test1', 'test2', 'test3', 'test4', 'test5']
+# plot_embeddings(M_reduced_plot_test, word2ind_plot_test, words)
+#
+# print ("-" * 80)
 
-M_reduced_plot_test = np.array([[1, 1], [-1, -1], [1, -1], [-1, 1], [0, 0]])
-word2ind_plot_test = {'test1': 0, 'test2': 1, 'test3': 2, 'test4': 3, 'test5': 4}
-words = ['test1', 'test2', 'test3', 'test4', 'test5']
-plot_embeddings(M_reduced_plot_test, word2ind_plot_test, words)
+"""Q1.5"""
+# ------------------------------
+# reuters_corpus = read_corpus()
+# M_co_occurrence, word2ind_co_occurrence = compute_co_occurrence_matrix(reuters_corpus)
+# M_reduced_co_occurrence = reduce_to_k_dim(M_co_occurrence, k=2)
+#
+# # Rescale (normalize) the rows to make them each of unit-length
+# M_lengths = np.linalg.norm(M_reduced_co_occurrence, axis=1)
+# M_normalized = M_reduced_co_occurrence / M_lengths[:, np.newaxis] # broadcasting
+#
+# words = ['tonnes', 'grain', 'wheat',  'agriculture', 'corn', 'maize', 'export', 'department', 'barley', 'grains', 'soybeans', 'sorghum']
+#
+# plot_embeddings(M_normalized, word2ind_co_occurrence, words)
 
-print ("-" * 80)
+"""Q1.5"""
+
+"""PART 2 - Prediction-based word vectors"""
+
+wv_from_bin = load_embedding_model()
+
+M, word2ind = get_matrix_of_vectors(wv_from_bin)
+M_reduced = reduce_to_k_dim(M, k=2)
+
+# Rescale (normalize) the rows to make them each of unit-length
+M_lengths = np.linalg.norm(M_reduced, axis=1)
+M_reduced_normalized = M_reduced / M_lengths[:, np.newaxis] # broadcasting
+
+"""Q2.1"""
+words = ['tonnes', 'grain', 'wheat',  'agriculture', 'corn', 'maize', 'export', 'department', 'barley', 'grains', 'soybeans', 'sorghum']
+plot_embeddings(M_reduced_normalized, word2ind, words)
